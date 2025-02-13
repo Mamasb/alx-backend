@@ -1,14 +1,46 @@
-import kue from 'kue';  // Use dynamic import for ES module
+const createPushNotificationsJobs = require('./8-job');
+const kue = require('kue');
 
-describe('Job creation in kue', function() {
-  it('should create a job in the queue', function(done) {
-    const queue = kue.createQueue();
-    const job = { phoneNumber: '123456789', message: 'Test message' };
+const queue = kue.createQueue();
+const { expect } = require('chai');
 
-    queue.create('push_notification_code', job).save((err) => {
-      if (err) done(err);
-      queue.testMode.jobs.length.should.equal(1); // Checking job length
-      done();
+describe('createPushNotificationsJobs', () => {
+    before(() => queue.testMode.enter());
+    afterEach(() => queue.testMode.clear());
+    after(() => queue.testMode.exit());
+
+    it('displays an error message if jobs is not an array', () => {
+        const job = {
+            phoneNumber: '4153518780',
+            message: 'This is the code 1234 to verify your account',
+        };
+        expect(() => createPushNotificationsJobs(job, queue)).to.throw(Error, 'Jobs is not an array');
     });
-  });
+
+    it('creates two new jobs to the queue', () => {
+        const jobs = [
+        {
+            phoneNumber: '4153518780',
+            message: 'This is the code 1234 to verify your account',
+        },
+        {
+            phoneNumber: '4153518781',
+            message: 'This is the code 4562 to verify your account',
+        },
+        ];
+    createPushNotificationsJobs(jobs, queue);
+    expect(queue.testMode.jobs.length).to.equal(2);
+
+    expect(queue.testMode.jobs[0].type).to.equal('push_notification_code_3');
+    expect(queue.testMode.jobs[0].data).to.deep.equal({
+        phoneNumber: '4153518780',
+        message: 'This is the code 1234 to verify your account',
+    });
+
+    expect(queue.testMode.jobs[1].type).to.equal('push_notification_code_3');
+    expect(queue.testMode.jobs[1].data).to.deep.equal({
+        phoneNumber: '4153518781',
+        message: 'This is the code 4562 to verify your account',
+    });
+    });
 });
